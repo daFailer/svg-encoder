@@ -1,0 +1,60 @@
+:root {
+  --pageBackgroundDark: #14264C;
+  --pageBackgroundLight: #2ADDA1;
+  --backgroundSectionDark: #2ADDA1;
+  --backgroundSectionLight: #14264C;
+  --backgroundArea: #FFFFFF;
+  --colorH1Dark: #FFFFFF;
+  --colorH1Light: #14264C;
+  --colorArea: #14264C;
+  --shadowMain: #14264C80;
+  --shadowDarkArea: #5ef5f873;
+  --shadowLightArea: #14264C73;
+
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.2;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  background-color: light-dark(var(--pageBackgroundLight), var(--pageBackgroundDark));
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-weight: 400;
+  font-size: 32px;
+  color: light-dark(var(--colorH1Light), var(--colorH1Dark));
+  text-align: center;
+  margin: 0 0 20px 0;
+}
+
+body {
+  max-width: 1280px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px 20px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 100dvh;
+  min-height: 100dvh;
+}
+
+// @media (prefers-color-scheme: light) {
+//   :root {
+//     color: #213547;
+//     background-color: #ffffff;
+//   }
+  
+//   a:hover {
+//     color: #747bff;
+//   }
+  
+//   button {
+//     background-color: #f9f9f9;
+//   }
+// } 
