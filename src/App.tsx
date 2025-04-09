@@ -128,6 +128,7 @@ function App() {
         </div>
         
         <div className="areaContainer previewContainer" style={{ backgroundColor: previewBackgroundColor }}>
+          {/* TODO: store image outside and use it via import */}
           <ColorSwitcher currentBackgroundColor={previewBackgroundColor} onBackgroundColorChange={handleBackgroundColorChange} />
           {raw && <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div>}
         </div>
