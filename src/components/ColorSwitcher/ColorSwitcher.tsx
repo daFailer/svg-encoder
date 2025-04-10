@@ -8,7 +8,7 @@ const backgroundColors = [
   '#ccc',
 ];
 
-const ColorSwitcher = ({ currentBackgroundColor, onBackgroundColorChange }: { currentBackgroundColor: string, onBackgroundColorChange: () => void }) => {
+const ColorSwitcher = ({ currentBackgroundColor, onBackgroundColorChange }: { currentBackgroundColor: string, onBackgroundColorChange: (colorHex: string) => void }) => {
   return (
     <div className="colorSwitcher">
       {backgroundColors.map((color) => {
