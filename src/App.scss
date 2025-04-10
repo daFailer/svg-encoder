@@ -28,6 +28,7 @@
     gap: 8px;
 
     .svgWrapper {
+      display: block;
       z-index: 1;
       cursor: pointer;
       grid-row: 1 / 2;
@@ -52,6 +53,7 @@
       color: inherit;
       grid-column: 1 / -1;
       grid-row: 1 / -1;
+      font-size: 13px;
     }
   }
   
@@ -63,6 +65,7 @@
   
     &.copy {
       height: 25px;
+      grid-column: -1 / -2;
 
       svg {
         transition: fill 200ms ease-in-out;
@@ -79,6 +82,8 @@
 
     &.load {
       height: 22px;
+      grid-column: -2 / -3;
+
       svg {
         height: 100%;
         width: auto;
