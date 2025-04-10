@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-import IconLoad from './assets/IconLoad';
-import IconCopy from './assets/IconCopy';
+import IconLoad from './assets/Icons/IconLoad';
+import IconCopy from './assets/Icons/IconCopy';
 
 import ColorSwitcher from './components/ColorSwitcher/ColorSwitcher';
 
