@@ -1,4 +1,6 @@
-import ColorSwitcherButton from "./ColorSwitcherButton";
+import ColorSwitcherButton from "../ColorSwitcherButton/ColorSwitcherButton";
+
+import './ColorSwitcher.scss';
 
 const backgroundColors = [
   '#fff',
@@ -8,7 +10,7 @@ const backgroundColors = [
 
 const ColorSwitcher = ({ currentBackgroundColor, onBackgroundColorChange }: { currentBackgroundColor: string, onBackgroundColorChange: () => void }) => {
   return (
-    <div className="controlls">
+    <div className="colorSwitcher">
       {backgroundColors.map((color) => {
         return (
           <ColorSwitcherButton
