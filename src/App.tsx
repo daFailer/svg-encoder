@@ -135,8 +135,11 @@ function App() {
     setRaw(decodeSvg(removeCss(e.target.value)));
   }
 
+  // TODO: add upload option per drag and drop or file selection modal
+
   return (
     <main>
+        {/* TODO: create AreaContainer component */}
         <div className="areaContainer inputContainer">
           <a href="#" title="Load Example" className="svgWrapper load" onClick={(e) => handleLoadExample(e)}>
             <IconLoad />
@@ -165,6 +168,7 @@ function App() {
         
         <div className="areaContainer previewContainer" style={{ backgroundColor: previewBackgroundColor }}>
           <ColorSwitcher currentBackgroundColor={previewBackgroundColor} onBackgroundColorChange={handleBackgroundColorChange} />
+          TODO: display preview info if no svg is given
           {raw && <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div>}
         </div>
     </main>
