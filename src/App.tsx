@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import IconLoad from './assets/Icons/IconLoad';
 import IconCopy from './assets/Icons/IconCopy';
+import IconPreview from './assets/Icons/IconPreview';
 
 import ColorSwitcher from './components/ColorSwitcher/ColorSwitcher';
 
@@ -168,8 +169,7 @@ function App() {
         
         <div className="areaContainer previewContainer" style={{ backgroundColor: previewBackgroundColor }}>
           <ColorSwitcher currentBackgroundColor={previewBackgroundColor} onBackgroundColorChange={handleBackgroundColorChange} />
-          TODO: display preview info if no svg is given
-          {raw && <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div>}
+          {raw ? <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div> : <><IconPreview /> SVG Preview</>}
         </div>
     </main>
   )
