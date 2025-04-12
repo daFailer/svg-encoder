@@ -3,7 +3,7 @@ type: docker
 name: default
 
 steps:
-  - name: install & build
+  - name: build
     image: node:18
     commands:
       - npm ci
@@ -11,9 +11,13 @@ steps:
 
   - name: deploy
     image: alpine
+    environment:
+      SSH_KEY:
+        from_secret: ssh_key
     commands:
-      - apk add openssh
-      - scp -r dist/* user@dfhost:/var/www/html
-    secrets:
-      - source: ssh_key
-        target: /root/.ssh/id_rsa
+      - apk add --no-cache openssh
+      - mkdir -p ~/.ssh
+      - echo "$SSH_KEY" > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      - ssh-keyscan -H svg-encoder.com >> ~/.ssh/known_hosts
+      - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/websiten/svg-encoder/
