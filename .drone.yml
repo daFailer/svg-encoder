@@ -20,4 +20,4 @@ steps:
       - echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H svg-encoder.com >> ~/.ssh/known_hosts
-      - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/websiten/svg-encoder/
+      - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/webseiten/svg-encoder/
