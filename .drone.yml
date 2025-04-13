@@ -26,8 +26,8 @@ steps:
       - echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H svg-encoder.com >> ~/.ssh/known_hosts
-      - REPO_NAME=$(basename $(pwd))
-      - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/webseiten/svg-encoder/
+      - REPO_NAME=$(DRONE_REPO_NAME)
+      - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/webseiten/${REPO_NAME}/
 ---
 kind: pipeline
 type: docker
@@ -62,5 +62,5 @@ steps:
       - echo "$NAS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
-      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /var/services/web/${DRONE_REPO_NAME}"
-      - scp -r dist/. mvogtherr@maniacbox.synology.me:/var/services/web/${DRONE_REPO_NAME}
+      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /web/${DRONE_REPO_NAME}"
+      - scp -r dist/. mvogtherr@maniacbox.synology.me:/web/${DRONE_REPO_NAME}
