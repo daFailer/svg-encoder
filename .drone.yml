@@ -1,10 +1,12 @@
 kind: pipeline
 type: docker
-name: release-to-hosting
+name: release-to-prod
 
 trigger:
   event:
-    - release
+    - tag
+  ref:
+    - refs/tags/v*
 
 steps:
   - name: build
@@ -29,7 +31,7 @@ steps:
 ---
 kind: pipeline
 type: docker
-name: deploy-to-synology
+name: deploy-to-test
 
 trigger:
   branch:
@@ -60,7 +62,7 @@ steps:
       - REPO_NAME=$(basename $(pwd))
       
       # Verzeichnis anlegen, falls nicht vorhanden
-      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /var/services/web/$REPO_NAME"
+      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/$REPO_NAME"
 
       # Daten übertragen
-      - scp -r dist/* mvogtherr@maniacbox.synology.me:/var/services/web/$REPO_NAME/
+      - scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/$REPO_NAME/
