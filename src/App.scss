@@ -100,3 +100,18 @@
     }
   }
 }
+
+.previewPlaceholder {
+  text-align: center;
+  margin-top: 40px;
+  
+  svg {
+    width: 150px;
+    height: auto;
+  }
+
+  p {
+    font-size: 19px;
+    margin-top: 0;
+  }
+}

@@ -169,7 +169,7 @@ function App() {
         
         <div className="areaContainer previewContainer" style={{ backgroundColor: previewBackgroundColor }}>
           <ColorSwitcher currentBackgroundColor={previewBackgroundColor} onBackgroundColorChange={handleBackgroundColorChange} />
-          {raw ? <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div> : <><IconPreview /> SVG Preview</>}
+          {raw ? <div className='svgWrapper preview' dangerouslySetInnerHTML={{ __html: raw }}></div> : <div className="previewPlaceholder"><IconPreview /> <p>SVG Preview</p></div>}
         </div>
     </main>
   )
