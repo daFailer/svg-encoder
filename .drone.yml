@@ -57,16 +57,13 @@ steps:
       - echo "$NAS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
-      - export REPO_NAME=$DRONE_REPO_NAME
-
-      # sichere Verzeichnis-Erstellung mit eval
       - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/${DRONE_REPO_NAME}"
-
-      # vollständige shell mit if/else
-      - |
-        if [ "$(ls -A dist/)" ]; then
-          echo "📦 Dateien gefunden, beginne Transfer..."
-          scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/${DRONE_REPO_NAME}/
-        else
-          echo "⚠️ Kein Inhalt in dist/, Deployment übersprungen."
-        fi
+      - >
+        sh -c '
+          if [ "$(ls -A dist/ 2>/dev/null)" ]; then
+            echo "📦 Dateien gefunden, beginne Transfer...";
+            scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/${DRONE_REPO_NAME}/;
+          else
+            echo "⚠️ Kein Inhalt in dist/, Deployment übersprungen.";
+          fi
+        '
