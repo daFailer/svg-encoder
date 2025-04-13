@@ -13,7 +13,7 @@ steps:
     image: node:18
     commands:
       - npm ci
-      - npm run build
+      - npm run build -- --mode production
 
   - name: deploy
     image: alpine
@@ -44,7 +44,7 @@ steps:
     image: node:18
     commands:
       - npm ci
-      - npm run build
+      - npm run build -- --mode test
     when:
       status:
         - success
