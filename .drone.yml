@@ -45,9 +45,14 @@ steps:
     commands:
       - npm ci
       - npm run build
+    when:
+      status:
+        - success
 
   - name: deploy-to-test
     image: alpine
+    depends_on:
+      - build
     environment:
       NAS_SSH_KEY:
         from_secret: maniacbox
