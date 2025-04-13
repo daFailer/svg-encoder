@@ -58,6 +58,17 @@ steps:
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
 
-      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/$DRONE_REPO_NAME"
+      # Repo-Name von Drone automatisch verwenden
+      - export REPO_NAME=$DRONE_REPO_NAME
 
-      - scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/$DRONE_REPO_NAME/
+      # Zielverzeichnis auf dem NAS anlegen
+      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/$REPO_NAME"
+
+      # Nur übertragen, wenn dist/ nicht leer ist
+      - |
+        if [ "$(ls -A dist/)" ]; then
+          echo "📦 Dateien gefunden, beginne Transfer..."
+          scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/$REPO_NAME/
+        else
+          echo "⚠️ Kein Inhalt in dist/, Deployment übersprungen."
+        fi
