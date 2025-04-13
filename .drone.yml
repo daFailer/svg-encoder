@@ -1,6 +1,10 @@
 kind: pipeline
 type: docker
-name: default
+name: release-to-hosting
+
+trigger:
+  event:
+    - release
 
 steps:
   - name: build
@@ -20,4 +24,43 @@ steps:
       - echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H svg-encoder.com >> ~/.ssh/known_hosts
+      - REPO_NAME=$(basename $(pwd))
       - scp -r dist/* ssh-548872-mvogtherr@svg-encoder.com:/kunden/548872_85276/webseiten/svg-encoder/
+
+kind: pipeline
+type: docker
+name: deploy-to-synology
+
+trigger:
+  branch:
+    - main
+  event:
+    - push
+
+steps:
+  - name: build
+    image: node:18
+    commands:
+      - npm ci
+      - npm run build
+
+  - name: deploy-to-nas
+    image: alpine
+    environment:
+      NAS_SSH_KEY:
+        from_secret: synology_key
+    commands:
+      - apk add --no-cache openssh
+      - mkdir -p ~/.ssh
+      - echo "$NAS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
+
+      # Name des Verzeichnisses vom Repository automatisch ableiten
+      - REPO_NAME=$(basename $(pwd))
+      
+      # Verzeichnis anlegen, falls nicht vorhanden
+      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /var/services/web/$REPO_NAME"
+
+      # Daten übertragen
+      - scp -r dist/* mvogtherr@maniacbox.synology.me:/var/services/web/$REPO_NAME/
