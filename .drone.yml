@@ -63,4 +63,4 @@ steps:
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
       - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /var/services/web/${DRONE_REPO_NAME}"
-      - scp -r dist/* mvogtherr@maniacbox.synology.me:/var/services/web/${DRONE_REPO_NAME}
+      - scp -r dist/. mvogtherr@maniacbox.synology.me:/var/services/web/${DRONE_REPO_NAME}
