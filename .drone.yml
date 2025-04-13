@@ -58,11 +58,6 @@ steps:
       - chmod 600 ~/.ssh/id_rsa
       - ssh-keyscan -H maniacbox.synology.me >> ~/.ssh/known_hosts
 
-      # Name des Verzeichnisses vom Repository automatisch ableiten
-      - REPO_NAME=$(basename $(pwd))
-      
-      # Verzeichnis anlegen, falls nicht vorhanden
-      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/$REPO_NAME"
+      - ssh -i ~/.ssh/id_rsa mvogtherr@maniacbox.synology.me "mkdir -p /volume1/web/$DRONE_REPO_NAME"
 
-      # Daten übertragen
-      - scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/$REPO_NAME/
+      - scp -r dist/* mvogtherr@maniacbox.synology.me:/volume1/web/$DRONE_REPO_NAME/
