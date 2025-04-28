@@ -40,7 +40,7 @@ trigger:
 
 steps:
   - name: build
-    image: node:18
+    image: node:23
     commands:
       - npm ci
       - npm run build -- --mode test
