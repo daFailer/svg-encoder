@@ -1,0 +1,65 @@
+name: svg-encoder PR image
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: svg-encoder-pr-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Verify application and image
+        run: |
+          set -Eeuo pipefail
+          npm ci
+          npm run lint
+          npm run build
+          docker build --target runtime --tag svg-encoder-pr-check .
+
+  publish:
+    needs: validate
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_REPOSITORY: ghcr.io/dafailer/svg-encoder
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Publish preview image
+        run: |
+          set -Eeuo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$PR_SHA" =~ ^[0-9a-f]{40}$ ]]
+          printf '%s' "${{ github.token }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          docker buildx build \
+            --platform linux/amd64 \
+            --target runtime \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=$PR_SHA" \
+            --tag "${APP_REPOSITORY}:pr-${PR_NUMBER}-${PR_SHA}" \
+            --push .
