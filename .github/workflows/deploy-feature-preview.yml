@@ -1,8 +1,8 @@
-name: Deploy svg-encoder preview
+name: Deploy Feature Preview
 
 on:
   workflow_run:
-    workflows: [svg-encoder PR image]
+    workflows: [Build Feature Preview]
     types: [completed]
 
 permissions:
@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   deploy:
+    name: Deploy Feature Preview
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -35,7 +36,10 @@ jobs:
           set -Eeuo pipefail
           pr_number="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
           head_sha="$(jq -r '.workflow_run.pull_requests[0].head.sha // empty' "$GITHUB_EVENT_PATH")"
-          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || { printf 'eligible=false\n' >> "$GITHUB_OUTPUT"; exit 0; }
+          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || {
+            printf 'Build Feature Preview succeeded but no pull request was attached to the workflow_run event.\n' >&2
+            exit 1
+          }
           [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
           pr_json="$(curl --fail --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
@@ -44,13 +48,12 @@ jobs:
           if ! jq -e --arg sha "$head_sha" --arg repository "$GITHUB_REPOSITORY" --arg owner "$GITHUB_REPOSITORY_OWNER" \
             '.state == "open" and .draft == false and .head.sha == $sha and .head.repo.full_name == $repository and .user.login == $owner and .user.login != "dependabot[bot]"' \
             <<<"$pr_json" >/dev/null; then
-            printf 'eligible=false\n' >> "$GITHUB_OUTPUT"
-            exit 0
+            printf 'Build Feature Preview succeeded but PR #%s is no longer eligible for a feature preview.\n' "$pr_number" >&2
+            exit 1
           fi
-          printf 'eligible=true\npr=%s\nsha=%s\n' "$pr_number" "$head_sha" >> "$GITHUB_OUTPUT"
+          printf 'pr=%s\nsha=%s\n' "$pr_number" "$head_sha" >> "$GITHUB_OUTPUT"
 
       - name: Resolve image digest
-        if: steps.metadata.outputs.eligible == 'true'
         id: image
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
@@ -64,7 +67,6 @@ jobs:
           printf 'ref=%s@%s\n' "$APP_REPOSITORY" "$digest" >> "$GITHUB_OUTPUT"
 
       - name: Create transient deployment
-        if: steps.metadata.outputs.eligible == 'true'
         id: deployment
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
@@ -80,7 +82,6 @@ jobs:
           printf 'id=%s\n' "$(jq -er '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
 
       - name: Deploy and publish status
-        if: steps.metadata.outputs.eligible == 'true'
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
           PR_SHA: ${{ steps.metadata.outputs.sha }}

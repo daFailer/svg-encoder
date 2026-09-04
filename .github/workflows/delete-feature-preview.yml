@@ -1,4 +1,4 @@
-name: Remove svg-encoder preview
+name: Delete Feature Preview
 
 on:
   pull_request_target:
@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  cleanup:
+  delete:
+    name: Delete Feature Preview
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login == github.repository_owner &&
