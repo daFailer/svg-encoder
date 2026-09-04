@@ -1,4 +1,4 @@
-name: Reconcile svg-encoder previews
+name: Reconcile Feature Previews
 
 on:
   schedule:
@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   reconcile:
+    name: Reconcile Feature Previews
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
