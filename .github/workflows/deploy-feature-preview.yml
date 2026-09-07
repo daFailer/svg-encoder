@@ -51,7 +51,12 @@ jobs:
             printf 'Build Feature Preview succeeded but PR #%s is no longer eligible for a feature preview.\n' "$pr_number" >&2
             exit 1
           fi
-          printf 'pr=%s\nsha=%s\n' "$pr_number" "$head_sha" >> "$GITHUB_OUTPUT"
+          encoded_title="$(jq -r '.title // empty | @uri' <<<"$pr_json")"
+          {
+            printf 'pr=%s\n' "$pr_number"
+            printf 'sha=%s\n' "$head_sha"
+            printf 'title=%s\n' "$encoded_title"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Resolve image digest
         id: image
@@ -86,6 +91,7 @@ jobs:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
           PR_SHA: ${{ steps.metadata.outputs.sha }}
           IMAGE_REF: ${{ steps.image.outputs.ref }}
+          PR_TITLE: ${{ steps.metadata.outputs.title }}
           DEPLOYMENT_ID: ${{ steps.deployment.outputs.id }}
         run: |
           set -Eeuo pipefail
@@ -103,7 +109,7 @@ jobs:
           ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_file" \
             -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "platform-deploy nonprod preview-up svg-encoder $PR_NUMBER $PR_SHA $IMAGE_REF"
+            "platform-deploy nonprod preview-up svg-encoder $PR_NUMBER $PR_SHA $IMAGE_REF $PR_TITLE"
           result=$?
           set -e
           [[ "$result" -eq 0 ]] && state=success || state=failure
