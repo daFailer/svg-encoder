@@ -43,3 +43,21 @@ body {
   max-height: 100dvh;
   min-height: 100dvh;
 }
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 22px;
+    margin: 0 0 12px 0;
+  }
+
+  body {
+    padding: 12px;
+    max-height: none;
+    grid-template-rows: auto auto;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-width: 0;
+  }
+}
