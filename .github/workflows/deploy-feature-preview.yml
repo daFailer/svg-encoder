@@ -34,25 +34,52 @@ jobs:
         id: metadata
         run: |
           set -Eeuo pipefail
-          pr_number="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
-          head_sha="$(jq -r '.workflow_run.pull_requests[0].head.sha // empty' "$GITHUB_EVENT_PATH")"
-          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || {
-            printf 'Build Feature Preview succeeded but no pull request was attached to the workflow_run event.\n' >&2
-            exit 1
+          skip() {
+            printf '%s\n' "$1" >&2
+            printf 'eligible=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
           }
-          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+          event_pr="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
+          event_sha="$(jq -r '.workflow_run.pull_requests[0].head.sha // empty' "$GITHUB_EVENT_PATH")"
+          run_sha="$(jq -r '.workflow_run.head_sha // empty' "$GITHUB_EVENT_PATH")"
+          pr_number=""
+          head_sha=""
+          if [[ "$event_pr" =~ ^[1-9][0-9]*$ && "$event_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            pr_number="$event_pr"
+            head_sha="$event_sha"
+          elif [[ "$run_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            head_sha="$run_sha"
+            pulls="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$head_sha/pulls")"
+            pr_number="$(jq -r \
+              --arg repository "$GITHUB_REPOSITORY" \
+              --arg owner "$GITHUB_REPOSITORY_OWNER" \
+              --arg sha "$head_sha" \
+              '[.[] | select(.state == "open" and .draft == false and .head.sha == $sha and .head.repo.full_name == $repository and .user.login == $owner and .user.login != "dependabot[bot]") | .number] | first // empty' \
+              <<<"$pulls")"
+          fi
+          if [[ ! "$pr_number" =~ ^[1-9][0-9]*$ || ! "$head_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            skip 'Skipping feature preview: no eligible pull request is attached to this build.'
+          fi
           pr_json="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$pr_number")"
-          if ! jq -e --arg sha "$head_sha" --arg repository "$GITHUB_REPOSITORY" --arg owner "$GITHUB_REPOSITORY_OWNER" \
+          if ! jq -e \
+            --arg sha "$head_sha" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg owner "$GITHUB_REPOSITORY_OWNER" \
             '.state == "open" and .draft == false and .head.sha == $sha and .head.repo.full_name == $repository and .user.login == $owner and .user.login != "dependabot[bot]"' \
             <<<"$pr_json" >/dev/null; then
-            printf 'Build Feature Preview succeeded but PR #%s is no longer eligible for a feature preview.\n' "$pr_number" >&2
-            exit 1
+            skip "$(printf 'Skipping feature preview: PR #%s is no longer eligible.' "$pr_number")"
           fi
           encoded_title="$(jq -r '.title // empty | @uri' <<<"$pr_json")"
           {
+            printf 'eligible=true\n'
             printf 'pr=%s\n' "$pr_number"
             printf 'sha=%s\n' "$head_sha"
             printf 'title=%s\n' "$encoded_title"
@@ -60,6 +87,7 @@ jobs:
 
       - name: Resolve image digest
         id: image
+        if: steps.metadata.outputs.eligible == 'true'
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
           PR_SHA: ${{ steps.metadata.outputs.sha }}
@@ -73,6 +101,7 @@ jobs:
 
       - name: Create transient deployment
         id: deployment
+        if: steps.metadata.outputs.eligible == 'true'
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
           PR_SHA: ${{ steps.metadata.outputs.sha }}
@@ -87,6 +116,7 @@ jobs:
           printf 'id=%s\n' "$(jq -er '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
 
       - name: Deploy and publish status
+        if: steps.metadata.outputs.eligible == 'true'
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.pr }}
           PR_SHA: ${{ steps.metadata.outputs.sha }}
@@ -99,24 +129,53 @@ jobs:
           [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]]
           [[ "$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
           [[ -n "$DEPLOY_KNOWN_HOSTS" && -n "$DEPLOY_SSH_KEY" ]]
+          preview_url_re='^https://svg-encoder-f[1-4]\.lab\.michaelvogtherr\.de$'
           umask 077
           key_file="${RUNNER_TEMP}/nonprod-key"
           known_hosts_file="${RUNNER_TEMP}/known-hosts"
-          trap 'rm -f -- "$key_file" "$known_hosts_file"' EXIT
+          stdout_file="${RUNNER_TEMP}/preview-up.out"
+          trap 'rm -f -- "$key_file" "$known_hosts_file" "$stdout_file"' EXIT
           printf '%s\n' "$DEPLOY_SSH_KEY" > "$key_file"
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$known_hosts_file"
           set +e
           ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_file" \
             -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "platform-deploy nonprod preview-up svg-encoder $PR_NUMBER $PR_SHA $IMAGE_REF $PR_TITLE"
+            "platform-deploy nonprod preview-up svg-encoder $PR_NUMBER $PR_SHA $IMAGE_REF $PR_TITLE" \
+            > "$stdout_file"
           result=$?
           set -e
-          [[ "$result" -eq 0 ]] && state=success || state=failure
-          payload="$(jq -cn --arg state "$state" \
-            --arg url "https://svg-encoder-pr-${PR_NUMBER}.lab.michaelvogtherr.de" \
+          if [[ -s "$stdout_file" ]]; then
+            cat -- "$stdout_file"
+          fi
+          feature_url="$(sed -n 's/^feature_url=//p' "$stdout_file" | tail -n1)"
+          if [[ ! "$feature_url" =~ $preview_url_re ]]; then
+            feature_url=""
+          fi
+          if ((result == 0)); then
+            if [[ -z "$feature_url" ]]; then
+              state=failure
+              description='Preview deployed but feature_url was missing or invalid.'
+              result=1
+            else
+              state=success
+              description='Preview is ready.'
+            fi
+          else
+            state=failure
+            description='Preview deployment failed or the preview limit was reached.'
+          fi
+          payload="$(jq -cn \
+            --arg state "$state" \
+            --arg url "$feature_url" \
             --arg log_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            '{state:$state,environment_url:$url,log_url:$log_url,auto_inactive:false}')"
+            --arg description "$description" \
+            '{
+              state: $state,
+              log_url: $log_url,
+              description: $description,
+              auto_inactive: false
+            } + (if $url == "" then {} else {environment_url: $url} end)')"
           curl --fail --silent --show-error --request POST \
             -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
