@@ -2,6 +2,14 @@
   display: flex;
   justify-content: end;
   gap: 5px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .colorSwitcher {
+    gap: 8px;
+  }
 }
 
 @keyframes rotate {
