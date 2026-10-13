@@ -11,6 +11,9 @@ steps:
       EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
         from_secret: ghcr_token
+      GH_TOKEN:
+        from_secret: ghcr_token
+      GITHUB_REPOSITORY_OWNER: daFailer
       DEPLOY_HOST:
         from_secret: deploy_host
       DEPLOY_PORT:
@@ -28,3 +31,5 @@ steps:
         apk add --no-cache bash openssh-client curl jq
         bash scripts/ci/ssh-platform-deploy.sh nonprod preview-down svg-encoder ${CI_COMMIT_PULL_REQUEST}
         bash scripts/ci/github-preview-deployment.sh inactive svg-encoder ${CI_COMMIT_PULL_REQUEST}
+        bash scripts/ci/install-gh.sh
+        bash scripts/ci/delete-preview-package-versions.sh ${CI_COMMIT_PULL_REQUEST}

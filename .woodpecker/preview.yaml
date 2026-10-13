@@ -21,11 +21,12 @@ steps:
     image: node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
     commands:
       - set -Eeuo pipefail
-      - apk add --no-cache bash
+      - apk add --no-cache bash jq
       - npm ci
       - npm run lint
       - npm run build
       - bash -n scripts/ci/*.sh
+      - bash tests/ghcr-packages.test.sh
 
   - name: publish
     image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
@@ -36,7 +37,7 @@ steps:
       password:
         from_secret: ghcr_token
       repo: ghcr.io/dafailer/svg-encoder
-      tags: pr-${CI_COMMIT_PULL_REQUEST}-${CI_COMMIT_SHA}
+      tags: pr-${CI_COMMIT_PULL_REQUEST}
       dockerfile: Dockerfile
       target: runtime
       platforms: linux/amd64
@@ -48,6 +49,19 @@ steps:
       labels:
         - org.opencontainers.image.source=https://github.com/daFailer/svg-encoder
         - org.opencontainers.image.revision=${CI_COMMIT_SHA}
+
+  - name: prune-stale-preview
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    environment:
+      GH_TOKEN:
+        from_secret: ghcr_token
+      GITHUB_REPOSITORY_OWNER: daFailer
+    commands:
+      - |
+        set -Eeuo pipefail
+        apk add --no-cache bash curl jq
+        bash scripts/ci/install-gh.sh
+        bash scripts/ci/delete-preview-package-versions.sh --keep-current ${CI_COMMIT_PULL_REQUEST}
 
   - name: preview-up
     image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
@@ -72,6 +86,6 @@ steps:
         title="$$(bash scripts/ci/preview-eligible.sh)"
         [[ -n "$$title" ]] || exit 0
         printf '%s' "$$GHCR_TOKEN" | skopeo login ghcr.io --username daFailer --password-stdin
-        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder pr-${CI_COMMIT_PULL_REQUEST}-${CI_COMMIT_SHA})"
+        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder pr-${CI_COMMIT_PULL_REQUEST})"
         bash scripts/ci/ssh-platform-deploy.sh nonprod preview-up svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_COMMIT_SHA} "$$app_ref" "$$title" \
           | bash scripts/ci/github-preview-deployment.sh create svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_COMMIT_SHA}

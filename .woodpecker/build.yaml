@@ -7,39 +7,75 @@ steps:
     image: node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
     commands:
       - set -Eeuo pipefail
-      - apk add --no-cache bash
+      - apk add --no-cache bash jq
       - npm ci
       - npm run lint
       - npm run build
       - bash -n scripts/ci/*.sh
+      - bash tests/ghcr-packages.test.sh
+
+  - name: guard-version
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    environment:
+      GHCR_TOKEN:
+        from_secret: ghcr_token
+    commands:
+      - |
+        set -Eeuo pipefail
+        version="$$(tr -d '[:space:]' < VERSION)"
+        [[ "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]]
+        apk add --no-cache skopeo
+        printf '%s' "$$GHCR_TOKEN" | skopeo login ghcr.io --username daFailer --password-stdin
+        if skopeo inspect "docker://ghcr.io/dafailer/svg-encoder:$${version}" >/dev/null 2>&1; then
+          printf 'Release ghcr.io/dafailer/svg-encoder:%s exists; pointing latest at it without rebuild.\n' "$$version"
+          skopeo copy "docker://ghcr.io/dafailer/svg-encoder:$${version}" "docker://ghcr.io/dafailer/svg-encoder:latest"
+          printf '1\n' > .ci-release-exists
+        else
+          printf '0\n' > .ci-release-exists
+        fi
 
   - name: publish
     image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
     privileged: true
-    settings:
-      registry: ghcr.io
-      username: daFailer
-      password:
+    environment:
+      GHCR_TOKEN:
         from_secret: ghcr_token
-      repo: ghcr.io/dafailer/svg-encoder
-      tags: sha-${CI_COMMIT_SHA}
-      dockerfile: Dockerfile
-      target: runtime
-      platforms: linux/amd64
-      provenance: false
-      auto_tag: false
-      cache_from:
-        - 'type=registry\,ref=ghcr.io/dafailer/svg-encoder:buildcache'
-      cache_to: "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache,mode=max"
-      labels:
-        - org.opencontainers.image.source=https://github.com/daFailer/svg-encoder
-        - org.opencontainers.image.revision=${CI_COMMIT_SHA}
+    commands:
+      - |
+        set -Eeuo pipefail
+        version="$$(tr -d '[:space:]' < VERSION)"
+        [[ "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]]
+        if [[ "$$(tr -d '[:space:]' < .ci-release-exists)" == 1 ]]; then
+          printf 'Skipping rebuild of ghcr.io/dafailer/svg-encoder:%s\n' "$$version"
+          exit 0
+        fi
+        command -v bash >/dev/null 2>&1 || apk add --no-cache bash
+        bash scripts/ci/publish-image.sh \
+          --target runtime \
+          --label "org.opencontainers.image.source=https://github.com/daFailer/svg-encoder" \
+          --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+          --label "org.opencontainers.image.version=$$version" \
+          --tag "ghcr.io/dafailer/svg-encoder:$$version" \
+          --tag "ghcr.io/dafailer/svg-encoder:latest" \
+          --cache-from "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache" \
+          --cache-to "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache,mode=max" \
+          .
+
+  - name: prune-ghcr
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    environment:
+      GH_TOKEN:
+        from_secret: ghcr_token
+      GITHUB_REPOSITORY_OWNER: daFailer
+    commands:
+      - |
+        set -Eeuo pipefail
+        apk add --no-cache bash jq curl
+        bash scripts/ci/install-gh.sh
+        bash scripts/ci/prune-ghcr-release-versions.sh svg-encoder
 
   - name: deploy-staging
     image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
-    when:
-      - event: [push, manual]
-        branch: main
     environment:
       EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
@@ -58,6 +94,8 @@ steps:
       - |
         set -Eeuo pipefail
         apk add --no-cache bash skopeo openssh-client
+        version="$$(tr -d '[:space:]' < VERSION)"
+        [[ "$$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]]
         printf '%s' "$$GHCR_TOKEN" | skopeo login ghcr.io --username daFailer --password-stdin
-        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder sha-${CI_COMMIT_SHA})"
+        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder "$$version")"
         bash scripts/ci/ssh-platform-deploy.sh nonprod stage svg-encoder ${CI_COMMIT_SHA} "$$app_ref"

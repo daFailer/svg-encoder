@@ -9,6 +9,9 @@ steps:
       EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
         from_secret: ghcr_token
+      GH_TOKEN:
+        from_secret: ghcr_token
+      GITHUB_REPOSITORY_OWNER: daFailer
       DEPLOY_HOST:
         from_secret: deploy_host
       DEPLOY_PORT:
@@ -33,3 +36,5 @@ steps:
           '[.[] | select(.draft == false and .head.repo.full_name == $$repository and .user.login == $$owner and .user.login != "dependabot[bot]") | .number] | sort | join(",")')"
         [[ -n "$$open_prs" ]] || open_prs=-
         bash scripts/ci/ssh-platform-deploy.sh nonprod reconcile svg-encoder "$$open_prs"
+        bash scripts/ci/install-gh.sh
+        bash scripts/ci/delete-orphaned-preview-packages.sh "$$open_prs"
