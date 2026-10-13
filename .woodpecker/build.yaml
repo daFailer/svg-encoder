@@ -1,18 +1,17 @@
 when:
   - event: [push, manual]
-    branch:
-      include:
-        - main
-        - cursor/woodpecker-ci-c27f
+    branch: main
 
 steps:
   - name: verify
     image: node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
     commands:
       - set -Eeuo pipefail
+      - apk add --no-cache bash
       - npm ci
       - npm run lint
       - npm run build
+      - bash -n scripts/ci/*.sh
 
   - name: publish
     image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
@@ -29,6 +28,9 @@ steps:
       platforms: linux/amd64
       provenance: false
       auto_tag: false
+      cache_from:
+        - "type=registry\\,ref=ghcr.io/dafailer/svg-encoder:buildcache"
+      cache_to: "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache,mode=max"
       labels:
         - org.opencontainers.image.source=https://github.com/daFailer/svg-encoder
         - org.opencontainers.image.revision=${CI_COMMIT_SHA}
@@ -39,6 +41,7 @@ steps:
       - event: [push, manual]
         branch: main
     environment:
+      EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
         from_secret: ghcr_token
       DEPLOY_HOST:
@@ -54,23 +57,7 @@ steps:
     commands:
       - |
         set -Eeuo pipefail
-        apk add --no-cache skopeo openssh-client
+        apk add --no-cache bash skopeo openssh-client
         printf '%s' "$$GHCR_TOKEN" | skopeo login ghcr.io --username daFailer --password-stdin
-        digest="$$(skopeo inspect --format '{{.Digest}}' "docker://ghcr.io/dafailer/svg-encoder:sha-${CI_COMMIT_SHA}")"
-        [[ "$$digest" =~ ^sha256:[0-9a-f]{64}$$ ]]
-        [[ "$$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$$ ]]
-        [[ "$$DEPLOY_PORT" =~ ^[0-9]+$$ ]]
-        [[ "$$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
-        [[ -n "$$DEPLOY_KNOWN_HOSTS" && -n "$$DEPLOY_SSH_KEY" ]]
-        umask 077
-        key_file="$$(mktemp)"
-        known_hosts_file="$$(mktemp)"
-        trap 'rm -f -- "$$key_file" "$$known_hosts_file"' EXIT
-        printf '%s\n' "$$DEPLOY_SSH_KEY" > "$$key_file"
-        printf '%s\n' "$$DEPLOY_KNOWN_HOSTS" > "$$known_hosts_file"
-        chmod 600 "$$key_file" "$$known_hosts_file"
-        app_ref="ghcr.io/dafailer/svg-encoder@$${digest}"
-        ssh -i "$$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
-          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$$known_hosts_file" \
-          -p "$$DEPLOY_PORT" "$$DEPLOY_USER@$$DEPLOY_HOST" \
-          "platform-deploy nonprod stage svg-encoder ${CI_COMMIT_SHA} $${app_ref}"
+        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder sha-${CI_COMMIT_SHA})"
+        bash scripts/ci/ssh-platform-deploy.sh nonprod stage svg-encoder ${CI_COMMIT_SHA} "$$app_ref"

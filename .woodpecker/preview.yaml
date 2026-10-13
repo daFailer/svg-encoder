@@ -1,15 +1,31 @@
 when:
   - event: pull_request
+    path:
+      exclude:
+        - docs/**
+        - "*.md"
+        - .agents/**
+        - .cursor/**
+    evaluate: 'CI_COMMIT_PULL_REQUEST_DRAFT == "false" && CI_COMMIT_AUTHOR == "daFailer"'
+  - event: pull_request_metadata
+    path:
+      exclude:
+        - docs/**
+        - "*.md"
+        - .agents/**
+        - .cursor/**
+    evaluate: 'CI_PIPELINE_EVENT_REASON == "ready_for_review" && CI_COMMIT_AUTHOR == "daFailer"'
 
 steps:
   - name: verify
     image: node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
     commands:
       - set -Eeuo pipefail
-      - case "${CI_COMMIT_AUTHOR:-}${CI_COMMIT_AUTHOR_EMAIL:-}" in *dependabot*) echo "skip dependabot"; exit 0 ;; esac
+      - apk add --no-cache bash
       - npm ci
       - npm run lint
       - npm run build
+      - bash -n scripts/ci/*.sh
 
   - name: publish
     image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
@@ -26,6 +42,9 @@ steps:
       platforms: linux/amd64
       provenance: false
       auto_tag: false
+      cache_from:
+        - "type=registry\\,ref=ghcr.io/dafailer/svg-encoder:buildcache"
+      cache_to: "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache,mode=max"
       labels:
         - org.opencontainers.image.source=https://github.com/daFailer/svg-encoder
         - org.opencontainers.image.revision=${CI_COMMIT_SHA}
@@ -33,6 +52,7 @@ steps:
   - name: preview-up
     image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     environment:
+      EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
         from_secret: ghcr_token
       DEPLOY_HOST:
@@ -48,26 +68,10 @@ steps:
     commands:
       - |
         set -Eeuo pipefail
-        case "${CI_COMMIT_AUTHOR:-}${CI_COMMIT_AUTHOR_EMAIL:-}" in *dependabot*) echo "skip dependabot"; exit 0 ;; esac
-        [[ "${CI_COMMIT_PULL_REQUEST:-}" =~ ^[1-9][0-9]*$$ ]]
-        apk add --no-cache skopeo openssh-client python3
+        apk add --no-cache bash skopeo openssh-client curl jq
+        title="$$(bash scripts/ci/preview-eligible.sh)"
+        [[ -n "$$title" ]] || exit 0
         printf '%s' "$$GHCR_TOKEN" | skopeo login ghcr.io --username daFailer --password-stdin
-        digest="$$(skopeo inspect --format '{{.Digest}}' "docker://ghcr.io/dafailer/svg-encoder:pr-${CI_COMMIT_PULL_REQUEST}-${CI_COMMIT_SHA}")"
-        [[ "$$digest" =~ ^sha256:[0-9a-f]{64}$$ ]]
-        [[ "$$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$$ ]]
-        [[ "$$DEPLOY_PORT" =~ ^[0-9]+$$ ]]
-        [[ "$$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
-        [[ -n "$$DEPLOY_KNOWN_HOSTS" && -n "$$DEPLOY_SSH_KEY" ]]
-        title="$$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote((os.environ.get("CI_COMMIT_MESSAGE") or "preview").splitlines()[0][:120], safe=""))')"
-        umask 077
-        key_file="$$(mktemp)"
-        known_hosts_file="$$(mktemp)"
-        trap 'rm -f -- "$$key_file" "$$known_hosts_file"' EXIT
-        printf '%s\n' "$$DEPLOY_SSH_KEY" > "$$key_file"
-        printf '%s\n' "$$DEPLOY_KNOWN_HOSTS" > "$$known_hosts_file"
-        chmod 600 "$$key_file" "$$known_hosts_file"
-        app_ref="ghcr.io/dafailer/svg-encoder@$${digest}"
-        ssh -i "$$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
-          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$$known_hosts_file" \
-          -p "$$DEPLOY_PORT" "$$DEPLOY_USER@$$DEPLOY_HOST" \
-          "platform-deploy nonprod preview-up svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_COMMIT_SHA} $${app_ref} $${title}"
+        app_ref="$$(bash scripts/ci/ghcr-digest.sh ghcr.io/dafailer/svg-encoder pr-${CI_COMMIT_PULL_REQUEST}-${CI_COMMIT_SHA})"
+        bash scripts/ci/ssh-platform-deploy.sh nonprod preview-up svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_COMMIT_SHA} "$$app_ref" "$$title" \
+          | bash scripts/ci/github-preview-deployment.sh create svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_COMMIT_SHA}

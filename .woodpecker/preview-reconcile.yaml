@@ -1,5 +1,3 @@
-skip_clone: true
-
 when:
   - event: cron
     cron: preview-reconcile
@@ -8,6 +6,7 @@ steps:
   - name: reconcile
     image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     environment:
+      EXPECTED_DEPLOY_USER: deploy-svg-encoder-nonprod
       GHCR_TOKEN:
         from_secret: ghcr_token
       DEPLOY_HOST:
@@ -23,11 +22,7 @@ steps:
     commands:
       - |
         set -Eeuo pipefail
-        apk add --no-cache curl jq openssh-client
-        [[ "$$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$$ ]]
-        [[ "$$DEPLOY_PORT" =~ ^[0-9]+$$ ]]
-        [[ "$$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
-        [[ -n "$$DEPLOY_KNOWN_HOSTS" && -n "$$DEPLOY_SSH_KEY" ]]
+        apk add --no-cache bash curl jq openssh-client
         pulls="$$(curl --fail --silent --show-error \
           -H "Authorization: Bearer $$GHCR_TOKEN" \
           -H "Accept: application/vnd.github+json" \
@@ -37,14 +32,4 @@ steps:
           --arg repository "daFailer/svg-encoder" --arg owner "daFailer" \
           '[.[] | select(.draft == false and .head.repo.full_name == $$repository and .user.login == $$owner and .user.login != "dependabot[bot]") | .number] | sort | join(",")')"
         [[ -n "$$open_prs" ]] || open_prs=-
-        umask 077
-        key_file="$$(mktemp)"
-        known_hosts_file="$$(mktemp)"
-        trap 'rm -f -- "$$key_file" "$$known_hosts_file"' EXIT
-        printf '%s\n' "$$DEPLOY_SSH_KEY" > "$$key_file"
-        printf '%s\n' "$$DEPLOY_KNOWN_HOSTS" > "$$known_hosts_file"
-        chmod 600 "$$key_file" "$$known_hosts_file"
-        ssh -i "$$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
-          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$$known_hosts_file" \
-          -p "$$DEPLOY_PORT" "$$DEPLOY_USER@$$DEPLOY_HOST" \
-          "platform-deploy nonprod reconcile svg-encoder $$open_prs"
+        bash scripts/ci/ssh-platform-deploy.sh nonprod reconcile svg-encoder "$$open_prs"
