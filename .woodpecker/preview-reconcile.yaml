@@ -3,7 +3,6 @@ skip_clone: true
 when:
   - event: cron
     cron: preview-reconcile
-  - event: manual
 
 steps:
   - name: reconcile
