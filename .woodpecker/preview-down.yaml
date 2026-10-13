@@ -1,0 +1,40 @@
+skip_clone: true
+
+when:
+  - event: pull_request_closed
+
+steps:
+  - name: preview-down
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    environment:
+      DEPLOY_HOST:
+        from_secret: deploy_host
+      DEPLOY_PORT:
+        from_secret: deploy_port
+      DEPLOY_USER:
+        from_secret: deploy_user
+      DEPLOY_KNOWN_HOSTS:
+        from_secret: deploy_known_hosts
+      DEPLOY_SSH_KEY:
+        from_secret: deploy_ssh_key
+    commands:
+      - |
+        set -Eeuo pipefail
+        case "${CI_COMMIT_AUTHOR:-}${CI_COMMIT_AUTHOR_EMAIL:-}" in *dependabot*) echo "skip dependabot"; exit 0 ;; esac
+        [[ "${CI_COMMIT_PULL_REQUEST:-}" =~ ^[1-9][0-9]*$$ ]]
+        [[ "$$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$$ ]]
+        [[ "$$DEPLOY_PORT" =~ ^[0-9]+$$ ]]
+        [[ "$$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
+        [[ -n "$$DEPLOY_KNOWN_HOSTS" && -n "$$DEPLOY_SSH_KEY" ]]
+        apk add --no-cache openssh-client
+        umask 077
+        key_file="$$(mktemp)"
+        known_hosts_file="$$(mktemp)"
+        trap 'rm -f -- "$$key_file" "$$known_hosts_file"' EXIT
+        printf '%s\n' "$$DEPLOY_SSH_KEY" > "$$key_file"
+        printf '%s\n' "$$DEPLOY_KNOWN_HOSTS" > "$$known_hosts_file"
+        chmod 600 "$$key_file" "$$known_hosts_file"
+        ssh -i "$$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$$known_hosts_file" \
+          -p "$$DEPLOY_PORT" "$$DEPLOY_USER@$$DEPLOY_HOST" \
+          "platform-deploy nonprod preview-down svg-encoder ${CI_COMMIT_PULL_REQUEST}"
