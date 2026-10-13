@@ -43,7 +43,7 @@ steps:
       provenance: false
       auto_tag: false
       cache_from:
-        - "type=registry\\,ref=ghcr.io/dafailer/svg-encoder:buildcache"
+        - 'type=registry\,ref=ghcr.io/dafailer/svg-encoder:buildcache'
       cache_to: "type=registry,ref=ghcr.io/dafailer/svg-encoder:buildcache,mode=max"
       labels:
         - org.opencontainers.image.source=https://github.com/daFailer/svg-encoder
