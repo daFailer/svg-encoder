@@ -24,27 +24,27 @@ steps:
       - |
         set -Eeuo pipefail
         apk add --no-cache curl jq openssh-client
-        [[ "$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$ ]]
-        [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]]
-        [[ "$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
-        [[ -n "$DEPLOY_KNOWN_HOSTS" && -n "$DEPLOY_SSH_KEY" ]]
-        pulls="$(curl --fail --silent --show-error \
-          -H "Authorization: Bearer $GHCR_TOKEN" \
+        [[ "$$DEPLOY_HOST" =~ ^[0-9a-fA-F:.]+$$ ]]
+        [[ "$$DEPLOY_PORT" =~ ^[0-9]+$$ ]]
+        [[ "$$DEPLOY_USER" == "deploy-svg-encoder-nonprod" ]]
+        [[ -n "$$DEPLOY_KNOWN_HOSTS" && -n "$$DEPLOY_SSH_KEY" ]]
+        pulls="$$(curl --fail --silent --show-error \
+          -H "Authorization: Bearer $$GHCR_TOKEN" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "https://api.github.com/repos/daFailer/svg-encoder/pulls?state=open&per_page=100")"
-        open_prs="$(printf '%s' "$pulls" | jq -r \
+        open_prs="$$(printf '%s' "$$pulls" | jq -r \
           --arg repository "daFailer/svg-encoder" --arg owner "daFailer" \
-          '[.[] | select(.draft == false and .head.repo.full_name == $repository and .user.login == $owner and .user.login != "dependabot[bot]") | .number] | sort | join(",")')"
-        [[ -n "$open_prs" ]] || open_prs=-
+          '[.[] | select(.draft == false and .head.repo.full_name == $$repository and .user.login == $$owner and .user.login != "dependabot[bot]") | .number] | sort | join(",")')"
+        [[ -n "$$open_prs" ]] || open_prs=-
         umask 077
-        key_file="$(mktemp)"
-        known_hosts_file="$(mktemp)"
-        trap 'rm -f -- "$key_file" "$known_hosts_file"' EXIT
-        printf '%s\n' "$DEPLOY_SSH_KEY" > "$key_file"
-        printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$known_hosts_file"
-        chmod 600 "$key_file" "$known_hosts_file"
-        ssh -i "$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
-          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts_file" \
-          -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-          "platform-deploy nonprod reconcile svg-encoder $open_prs"
+        key_file="$$(mktemp)"
+        known_hosts_file="$$(mktemp)"
+        trap 'rm -f -- "$$key_file" "$$known_hosts_file"' EXIT
+        printf '%s\n' "$$DEPLOY_SSH_KEY" > "$$key_file"
+        printf '%s\n' "$$DEPLOY_KNOWN_HOSTS" > "$$known_hosts_file"
+        chmod 600 "$$key_file" "$$known_hosts_file"
+        ssh -i "$$key_file" -o BatchMode=yes -o IdentitiesOnly=yes \
+          -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$$known_hosts_file" \
+          -p "$$DEPLOY_PORT" "$$DEPLOY_USER@$$DEPLOY_HOST" \
+          "platform-deploy nonprod reconcile svg-encoder $$open_prs"
