@@ -6,7 +6,7 @@ when:
         - "*.md"
         - .agents/**
         - .cursor/**
-    evaluate: 'CI_COMMIT_PULL_REQUEST_DRAFT == "false" && CI_COMMIT_AUTHOR == "daFailer"'
+    evaluate: 'CI_COMMIT_PULL_REQUEST_DRAFT == "false" && CI_PIPELINE_AUTHOR == CI_REPO_OWNER'
   - event: pull_request_metadata
     path:
       exclude:
@@ -14,7 +14,7 @@ when:
         - "*.md"
         - .agents/**
         - .cursor/**
-    evaluate: 'CI_PIPELINE_EVENT_REASON == "ready_for_review" && CI_COMMIT_AUTHOR == "daFailer"'
+    evaluate: 'CI_PIPELINE_EVENT_REASON contains "ready_for_review" && CI_PIPELINE_AUTHOR == CI_REPO_OWNER'
 
 steps:
   - name: verify
