@@ -101,7 +101,9 @@ while IFS= read -r id; do
     cat "$delete_err" >&2
     if is_http_forbidden_or_missing "$delete_err"; then
       rm -f -- "$delete_err"
-      fail_admin
+      echo "Package Admin für Actions fehlt (Issue-Schritt 0)" >&2
+      echo "skipping delete of package version ${id}; token needs delete:packages" >&2
+      continue
     fi
     rm -f -- "$delete_err"
     exit 1

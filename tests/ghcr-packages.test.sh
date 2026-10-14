@@ -42,7 +42,7 @@ expect_missing "$pr12_out" "id=12"
 
 keep_current="$(bash "$delete_pr" 12 --keep-current --from-json "$fixtures/ghcr-preview-versions.json")"
 expect_missing "$keep_current" "id=22"
-expect_contains "$keep_current" "delete id=23 prefix=pr-12-"
+expect_missing "$keep_current" "id=23"
 
 orphan_out="$(bash "$delete_orphans" 12 --from-json "$fixtures/ghcr-preview-versions.json")"
 expect_contains "$orphan_out" "delete id=99 orphaned-preview"

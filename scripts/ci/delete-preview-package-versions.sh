@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Delete GHCR versions tagged pr-<PR> or pr-<PR>-* that do not also carry a
-# semver tag. --keep-current leaves the version currently tagged pr-<PR> and
-# also drops untagged leftovers from overwriting that tag.
+# semver tag. --keep-current leaves the version currently tagged pr-<PR>.
+# Untagged leftovers stay for main prune; deleting every untagged version
+# would also remove cache leftovers and 403 without delete:packages.
 set -Eeuo pipefail
 
 pr=""
@@ -87,17 +88,11 @@ ids="$(jq -r --arg prefix "$prefix" --arg exact "$exact" --argjson keep_current 
   def has_semver: any(tags[]; test("^[0-9]+\\.[0-9]+\\.[0-9]+$"));
   def is_pr: any(tags[]; . == $exact or startswith($prefix));
   def is_current: any(tags[]; . == $exact);
-  def is_untagged: (tags | length) == 0;
 
   .[]
   | select(has_semver | not)
-  | select(
-      if $keep_current == 1 then
-        (is_pr and (is_current | not)) or is_untagged
-      else
-        is_pr
-      end
-    )
+  | select(is_pr)
+  | select($keep_current == 0 or (is_current | not))
   | .id
 ' <<<"$versions")"
 
@@ -115,7 +110,9 @@ while IFS= read -r id; do
     cat "$delete_err" >&2
     if is_http_forbidden_or_missing "$delete_err"; then
       rm -f -- "$delete_err"
-      fail_admin
+      echo "Package Admin für Actions fehlt (Issue-Schritt 0)" >&2
+      echo "skipping delete of package version ${id}; token needs delete:packages" >&2
+      continue
     fi
     rm -f -- "$delete_err"
     exit 1
