@@ -56,6 +56,10 @@ build_yaml="$(cat "$root/.woodpecker/build.yaml")"
 expect_contains "$build_yaml" 'ghcr.io/dafailer/svg-encoder:latest'
 expect_missing "$build_yaml" 'sha-${CI_COMMIT_SHA}'
 
+publish_sh="$(cat "$root/scripts/ci/publish-image.sh")"
+expect_contains "$publish_sh" '--provenance=false'
+expect_contains "$publish_sh" '--sbom=false'
+
 if bash "$prune" chargeworth-app --from-json "$fixtures/ghcr-empty.json" >/dev/null 2>&1; then
   fail "expected non-zero exit for a package name outside the allowlist"
 fi
