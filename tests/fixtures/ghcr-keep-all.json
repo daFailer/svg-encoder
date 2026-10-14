@@ -1,0 +1,56 @@
+[
+  {
+    "id": 60,
+    "name": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created_at": "2026-09-06T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.6.0", "latest"] } }
+  },
+  {
+    "id": 50,
+    "name": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "created_at": "2026-09-05T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.5.0"] } }
+  },
+  {
+    "id": 40,
+    "name": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "created_at": "2026-09-04T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.4.0"] } }
+  },
+  {
+    "id": 30,
+    "name": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "created_at": "2026-09-03T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.3.0"] } }
+  },
+  {
+    "id": 20,
+    "name": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "created_at": "2026-09-02T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.2.0"] } }
+  },
+  {
+    "id": 10,
+    "name": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "created_at": "2026-09-01T12:00:00Z",
+    "metadata": { "container": { "tags": ["0.1.0"] } }
+  },
+  {
+    "id": 99,
+    "name": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "created_at": "2026-09-07T12:00:00Z",
+    "metadata": { "container": { "tags": [] } }
+  },
+  {
+    "id": 88,
+    "name": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "created_at": "2026-09-08T12:00:00Z",
+    "metadata": { "container": { "tags": ["pr-12"] } }
+  },
+  {
+    "id": 70,
+    "name": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "created_at": "2026-09-08T11:00:00Z",
+    "metadata": { "container": { "tags": ["buildcache"] } }
+  }
+]
