@@ -52,6 +52,12 @@ yaml="$(cat "$root/.woodpecker/preview.yaml")"
 expect_contains "$yaml" 'tags: pr-${CI_COMMIT_PULL_REQUEST}'
 expect_missing "$yaml" 'pr-${CI_COMMIT_PULL_REQUEST}-${CI_COMMIT_SHA}'
 
+down_yaml="$(cat "$root/.woodpecker/preview-down.yaml")"
+expect_contains "$down_yaml" 'cancel-preview-builds svg-encoder ${CI_COMMIT_PULL_REQUEST} ${CI_PIPELINE_NUMBER}'
+cancel_line="$(printf '%s\n' "$down_yaml" | grep -n 'cancel-preview-builds' | head -n1 | cut -d: -f1)"
+down_line="$(printf '%s\n' "$down_yaml" | grep -n 'preview-down svg-encoder' | head -n1 | cut -d: -f1)"
+[[ "$cancel_line" -lt "$down_line" ]]
+
 build_yaml="$(cat "$root/.woodpecker/build.yaml")"
 expect_contains "$build_yaml" 'ghcr.io/dafailer/svg-encoder:latest'
 expect_missing "$build_yaml" 'sha-${CI_COMMIT_SHA}'
